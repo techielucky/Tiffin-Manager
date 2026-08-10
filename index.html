@@ -1,0 +1,1270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <meta
+        name="theme-color"
+        content="#111827"
+    >
+
+    <title>Tiffin Manager</title>
+
+    <!-- Main CSS -->
+    <link
+        rel="stylesheet"
+        href="css/style.css"
+    >
+
+    <!-- Supabase JavaScript Library -->
+    <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+</head>
+
+<body>
+
+    <!-- =====================================================
+         AUTHENTICATION SCREEN
+    ====================================================== -->
+
+    <div id="authScreen" class="auth-screen">
+
+        <div class="auth-card">
+
+            <!-- Logo -->
+            <div class="logo">
+                🍱
+            </div>
+
+            <h1>Tiffin Manager</h1>
+
+            <p class="subtitle">
+                Track your tiffins, expenses and monthly totals.
+            </p>
+
+
+            <!-- Login / Register Tabs -->
+
+            <div class="auth-tabs">
+
+                <button
+                    id="loginTab"
+                    class="tab active"
+                    type="button"
+                >
+                    Sign in
+                </button>
+
+                <button
+                    id="registerTab"
+                    class="tab"
+                    type="button"
+                >
+                    Register
+                </button>
+
+            </div>
+
+
+            <!-- Authentication Form -->
+
+            <form id="authForm">
+
+                <!-- Username -->
+
+                <div class="field">
+
+                    <label for="username">
+                        Username
+                    </label>
+
+                    <input
+                        id="username"
+                        class="input"
+                        type="text"
+                        required
+                        minlength="3"
+                        maxlength="30"
+                        autocomplete="username"
+                        placeholder="e.g. lucky"
+                    >
+
+                </div>
+
+
+                <!-- Name - Only Registration -->
+
+                <div
+                    id="nameField"
+                    class="field hidden"
+                >
+
+                    <label for="displayName">
+                        Your name
+                    </label>
+
+                    <input
+                        id="displayName"
+                        class="input"
+                        type="text"
+                        maxlength="80"
+                        placeholder="Your name"
+                    >
+
+                </div>
+
+
+                <!-- Password -->
+
+                <div class="field">
+
+                    <label for="password">
+                        Password
+                    </label>
+
+                    <input
+                        id="password"
+                        class="input"
+                        type="password"
+                        required
+                        minlength="6"
+                        autocomplete="current-password"
+                        placeholder="••••••••"
+                    >
+
+                </div>
+
+
+                <!-- Error / Status Message -->
+
+                <p
+                    id="authMessage"
+                    class="message"
+                ></p>
+
+
+                <!-- Submit -->
+
+                <button
+                    id="authButton"
+                    class="btn primary full"
+                    type="submit"
+                >
+                    Sign in
+                </button>
+
+            </form>
+
+
+            <p class="small-note">
+
+                No email or OTP is required in this project.
+                Authentication is handled securely by Supabase.
+
+            </p>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         MAIN APPLICATION
+    ====================================================== -->
+
+    <div
+        id="appScreen"
+        class="hidden"
+    >
+
+        <!-- =================================================
+             TOP HEADER
+        ================================================== -->
+
+        <header class="topbar">
+
+            <div class="brand">
+
+                <div class="brand-icon">
+                    🍱
+                </div>
+
+                <div>
+
+                    <strong>
+                        Tiffin Manager
+                    </strong>
+
+                    <span>
+                        Cloud synced
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- Logged-in User -->
+
+            <div class="account">
+
+                <span id="headerUsername">
+                    @username
+                </span>
+
+                <button
+                    id="logoutBtn"
+                    class="btn secondary"
+                    type="button"
+                >
+                    Log out
+                </button>
+
+            </div>
+
+        </header>
+
+
+
+        <!-- =================================================
+             APPLICATION LAYOUT
+        ================================================== -->
+
+        <div class="layout">
+
+
+            <!-- =================================================
+                 SIDEBAR
+            ================================================== -->
+
+            <aside class="sidebar">
+
+                <button
+                    class="nav active"
+                    data-page="dashboard"
+                    type="button"
+                >
+                    🏠
+                    <span>
+                        Dashboard
+                    </span>
+                </button>
+
+
+                <button
+                    class="nav"
+                    data-page="people"
+                    type="button"
+                >
+                    👥
+                    <span>
+                        People
+                    </span>
+                </button>
+
+
+                <button
+                    class="nav"
+                    data-page="expenses"
+                    type="button"
+                >
+                    💰
+                    <span>
+                        Expenses
+                    </span>
+                </button>
+
+
+                <button
+                    class="nav"
+                    data-page="reports"
+                    type="button"
+                >
+                    📊
+                    <span>
+                        Reports
+                    </span>
+                </button>
+
+
+                <button
+                    class="nav"
+                    data-page="settings"
+                    type="button"
+                >
+                    ⚙️
+                    <span>
+                        Settings
+                    </span>
+                </button>
+
+            </aside>
+
+
+
+            <!-- =================================================
+                 MAIN CONTENT
+            ================================================== -->
+
+            <main class="main">
+
+
+                <!-- =================================================
+                     DASHBOARD
+                ================================================== -->
+
+                <section
+                    id="dashboardPage"
+                    class="page active"
+                >
+
+                    <div class="page-head">
+
+                        <div>
+
+                            <h2>
+                                Daily Tiffins
+                            </h2>
+
+                            <p>
+                                Click a meal to save it automatically.
+                            </p>
+
+                        </div>
+
+
+                        <!-- Date Controls -->
+
+                        <div class="date-controls">
+
+                            <button
+                                class="btn secondary"
+                                id="previousDay"
+                                type="button"
+                            >
+                                ←
+                            </button>
+
+                            <input
+                                id="selectedDate"
+                                class="date-input"
+                                type="date"
+                            >
+
+                            <button
+                                class="btn secondary"
+                                id="nextDay"
+                                type="button"
+                            >
+                                →
+                            </button>
+
+                            <button
+                                class="btn primary"
+                                id="todayBtn"
+                                type="button"
+                            >
+                                Today
+                            </button>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Dashboard Statistics -->
+
+                    <div class="stats">
+
+                        <div class="stat-card">
+
+                            <span>
+                                People
+                            </span>
+
+                            <strong id="peopleCount">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <span>
+                                Today's Tiffins
+                            </span>
+
+                            <strong id="tiffinCount">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <span>
+                                Today's Expenses
+                            </span>
+
+                            <strong id="expenseTotal">
+                                ₹0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="stat-card">
+
+                            <span>
+                                Estimated Revenue
+                            </span>
+
+                            <strong id="revenueTotal">
+                                ₹0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Dashboard Content -->
+
+                    <div class="content-grid">
+
+
+                        <!-- Tiffin Table -->
+
+                        <div class="card">
+
+                            <div class="card-head">
+
+                                <h3 id="dayTitle">
+                                    Today
+                                </h3>
+
+                                <span class="saved-label">
+                                    ● Auto saved
+                                </span>
+
+                            </div>
+
+
+                            <div class="table-wrap">
+
+                                <table>
+
+                                    <thead>
+
+                                        <tr>
+
+                                            <th>
+                                                Person
+                                            </th>
+
+                                            <th>
+                                                Breakfast
+                                            </th>
+
+                                            <th>
+                                                Lunch
+                                            </th>
+
+                                            <th>
+                                                Dinner
+                                            </th>
+
+                                            <th>
+                                                Total
+                                            </th>
+
+                                        </tr>
+
+                                    </thead>
+
+
+                                    <tbody id="tiffinBody">
+
+                                        <!-- JavaScript inserts rows here -->
+
+                                    </tbody>
+
+                                </table>
+
+                            </div>
+
+                        </div>
+
+
+
+                        <!-- Today's Expenses -->
+
+                        <div class="card">
+
+                            <div class="card-head">
+
+                                <h3>
+                                    Today's Expenses
+                                </h3>
+
+                                <button
+                                    id="addExpenseBtn"
+                                    class="btn primary"
+                                    type="button"
+                                >
+                                    + Add
+                                </button>
+
+                            </div>
+
+
+                            <div class="card-body">
+
+                                <div
+                                    id="dayExpenses"
+                                    class="list"
+                                >
+                                    <!-- JavaScript -->
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =================================================
+                     PEOPLE
+                ================================================== -->
+
+                <section
+                    id="peoplePage"
+                    class="page"
+                >
+
+                    <div class="page-head">
+
+                        <div>
+
+                            <h2>
+                                People
+                            </h2>
+
+                            <p>
+                                Add the people whose tiffins you track.
+                            </p>
+
+                        </div>
+
+
+                        <button
+                            id="addPersonBtn"
+                            class="btn primary"
+                            type="button"
+                        >
+                            + Add person
+                        </button>
+
+                    </div>
+
+
+                    <div
+                        id="peopleGrid"
+                        class="people-grid"
+                    >
+
+                        <!-- JavaScript inserts people -->
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =================================================
+                     EXPENSES
+                ================================================== -->
+
+                <section
+                    id="expensesPage"
+                    class="page"
+                >
+
+                    <div class="page-head">
+
+                        <div>
+
+                            <h2>
+                                Expenses
+                            </h2>
+
+                            <p>
+                                All your saved expenses.
+                            </p>
+
+                        </div>
+
+
+                        <button
+                            id="addExpensePageBtn"
+                            class="btn primary"
+                            type="button"
+                        >
+                            + Add expense
+                        </button>
+
+                    </div>
+
+
+                    <div class="card">
+
+                        <div class="card-body">
+
+                            <div
+                                id="allExpenses"
+                                class="list"
+                            >
+
+                                <!-- JavaScript -->
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =================================================
+                     REPORTS
+                ================================================== -->
+
+                <section
+                    id="reportsPage"
+                    class="page"
+                >
+
+                    <div class="page-head">
+
+                        <div>
+
+                            <h2>
+                                Monthly Report
+                            </h2>
+
+                            <p>
+                                See tiffins, revenue, expenses and profit.
+                            </p>
+
+                        </div>
+
+
+                        <input
+                            id="reportMonth"
+                            class="date-input"
+                            type="month"
+                        >
+
+                    </div>
+
+
+                    <!-- Report Statistics -->
+
+                    <div class="report-grid">
+
+                        <div class="report-card">
+
+                            <span>
+                                Total Tiffins
+                            </span>
+
+                            <strong id="reportTiffins">
+                                0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="report-card">
+
+                            <span>
+                                Revenue
+                            </span>
+
+                            <strong id="reportRevenue">
+                                ₹0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="report-card">
+
+                            <span>
+                                Expenses
+                            </span>
+
+                            <strong id="reportExpenses">
+                                ₹0
+                            </strong>
+
+                        </div>
+
+
+                        <div class="report-card">
+
+                            <span>
+                                Estimated Profit
+                            </span>
+
+                            <strong id="reportProfit">
+                                ₹0
+                            </strong>
+
+                        </div>
+
+                    </div>
+
+
+
+                    <!-- Person-wise Report -->
+
+                    <div class="card">
+
+                        <div class="card-head">
+
+                            <h3>
+                                Person-wise totals
+                            </h3>
+
+                        </div>
+
+
+                        <div class="table-wrap">
+
+                            <table>
+
+                                <thead>
+
+                                    <tr>
+
+                                        <th>
+                                            Person
+                                        </th>
+
+                                        <th>
+                                            Breakfast
+                                        </th>
+
+                                        <th>
+                                            Lunch
+                                        </th>
+
+                                        <th>
+                                            Dinner
+                                        </th>
+
+                                        <th>
+                                            Total
+                                        </th>
+
+                                        <th>
+                                            Bill
+                                        </th>
+
+                                    </tr>
+
+                                </thead>
+
+
+                                <tbody id="reportBody">
+
+                                    <!-- JavaScript -->
+
+                                </tbody>
+
+                            </table>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+
+
+                <!-- =================================================
+                     SETTINGS
+                ================================================== -->
+
+                <section
+                    id="settingsPage"
+                    class="page"
+                >
+
+                    <div class="page-head">
+
+                        <div>
+
+                            <h2>
+                                Settings
+                            </h2>
+
+                            <p>
+                                Account profile and meal prices.
+                            </p>
+
+                        </div>
+
+                    </div>
+
+
+                    <div class="card">
+
+                        <div class="card-body">
+
+
+                            <!-- Profile -->
+
+                            <div class="field">
+
+                                <label>
+                                    Username
+                                </label>
+
+                                <input
+                                    id="settingsUsername"
+                                    class="input"
+                                    type="text"
+                                    disabled
+                                >
+
+                            </div>
+
+
+                            <div class="field">
+
+                                <label>
+                                    Your name
+                                </label>
+
+                                <input
+                                    id="settingsName"
+                                    class="input"
+                                    type="text"
+                                >
+
+                            </div>
+
+
+                            <button
+                                id="saveProfileBtn"
+                                class="btn primary"
+                                type="button"
+                            >
+                                Save profile
+                            </button>
+
+
+                            <hr class="divider">
+
+
+                            <!-- Meal Rates -->
+
+                            <h3>
+                                Meal rates
+                            </h3>
+
+                            <p class="muted">
+                                Used for estimated revenue and monthly bills.
+                            </p>
+
+
+                            <div class="rate-grid">
+
+
+                                <div class="field">
+
+                                    <label>
+                                        Breakfast
+                                    </label>
+
+                                    <input
+                                        id="rateBreakfast"
+                                        class="input"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                    >
+
+                                </div>
+
+
+                                <div class="field">
+
+                                    <label>
+                                        Lunch
+                                    </label>
+
+                                    <input
+                                        id="rateLunch"
+                                        class="input"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                    >
+
+                                </div>
+
+
+                                <div class="field">
+
+                                    <label>
+                                        Dinner
+                                    </label>
+
+                                    <input
+                                        id="rateDinner"
+                                        class="input"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                    >
+
+                                </div>
+
+
+                                <div class="field">
+
+                                    <label>
+                                        Extra
+                                    </label>
+
+                                    <input
+                                        id="rateExtra"
+                                        class="input"
+                                        type="number"
+                                        min="0"
+                                        step="0.01"
+                                    >
+
+                                </div>
+
+                            </div>
+
+
+                            <button
+                                id="saveRatesBtn"
+                                class="btn primary"
+                                type="button"
+                            >
+                                Save rates
+                            </button>
+
+                        </div>
+
+                    </div>
+
+                </section>
+
+            </main>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ADD PERSON MODAL
+    ====================================================== -->
+
+    <div
+        id="personModal"
+        class="modal"
+    >
+
+        <div class="modal-card">
+
+            <div class="modal-head">
+
+                <h3>
+                    Add person
+                </h3>
+
+                <button
+                    class="close"
+                    data-close="personModal"
+                    type="button"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+                <div class="field">
+
+                    <label for="personName">
+                        Name
+                    </label>
+
+                    <input
+                        id="personName"
+                        class="input"
+                        type="text"
+                        placeholder="e.g. Rahul"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-foot">
+
+                <button
+                    class="btn secondary"
+                    data-close="personModal"
+                    type="button"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    id="savePersonBtn"
+                    class="btn primary"
+                    type="button"
+                >
+                    Add
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         ADD EXPENSE MODAL
+    ====================================================== -->
+
+    <div
+        id="expenseModal"
+        class="modal"
+    >
+
+        <div class="modal-card">
+
+            <div class="modal-head">
+
+                <h3>
+                    Add expense
+                </h3>
+
+                <button
+                    class="close"
+                    data-close="expenseModal"
+                    type="button"
+                >
+                    ×
+                </button>
+
+            </div>
+
+
+            <div class="modal-body">
+
+
+                <!-- Expense Date -->
+
+                <div class="field">
+
+                    <label for="expenseDate">
+                        Date
+                    </label>
+
+                    <input
+                        id="expenseDate"
+                        class="input"
+                        type="date"
+                    >
+
+                </div>
+
+
+                <!-- Category -->
+
+                <div class="field">
+
+                    <label for="expenseCategory">
+                        Category
+                    </label>
+
+                    <select
+                        id="expenseCategory"
+                        class="input"
+                    >
+
+                        <option>
+                            Vegetables
+                        </option>
+
+                        <option>
+                            Rice / Wheat
+                        </option>
+
+                        <option>
+                            Milk
+                        </option>
+
+                        <option>
+                            Gas
+                        </option>
+
+                        <option>
+                            Oil
+                        </option>
+
+                        <option>
+                            Spices
+                        </option>
+
+                        <option>
+                            Staff
+                        </option>
+
+                        <option>
+                            Electricity
+                        </option>
+
+                        <option>
+                            Water
+                        </option>
+
+                        <option>
+                            Other
+                        </option>
+
+                    </select>
+
+                </div>
+
+
+                <!-- Description -->
+
+                <div class="field">
+
+                    <label for="expenseDescription">
+                        Description
+                    </label>
+
+                    <input
+                        id="expenseDescription"
+                        class="input"
+                        type="text"
+                        placeholder="Optional"
+                    >
+
+                </div>
+
+
+                <!-- Amount -->
+
+                <div class="field">
+
+                    <label for="expenseAmount">
+                        Amount
+                    </label>
+
+                    <input
+                        id="expenseAmount"
+                        class="input"
+                        type="number"
+                        min="0"
+                        step="0.01"
+                        placeholder="₹"
+                    >
+
+                </div>
+
+            </div>
+
+
+            <div class="modal-foot">
+
+                <button
+                    class="btn secondary"
+                    data-close="expenseModal"
+                    type="button"
+                >
+                    Cancel
+                </button>
+
+                <button
+                    id="saveExpenseBtn"
+                    class="btn primary"
+                    type="button"
+                >
+                    Save
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+
+
+    <!-- =====================================================
+         TOAST / NOTIFICATION
+    ====================================================== -->
+
+    <div
+        id="toast"
+        class="toast"
+    ></div>
+
+
+
+    <!-- =====================================================
+         JAVASCRIPT FILES
+    ====================================================== -->
+
+    <!-- Supabase configuration -->
+    <script src="js/config.js"></script>
+
+    <!-- Utility functions -->
+    <script src="js/utils.js"></script>
+
+    <!-- Authentication -->
+    <script src="js/auth.js"></script>
+
+    <!-- Database functions -->
+    <script src="js/database.js"></script>
+
+    <!-- Main application -->
+    <script src="js/app.js"></script>
+
+</body>
+</html>
