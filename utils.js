@@ -119,17 +119,18 @@ window.TiffinUtils = {
     lucky@tiffin.local
     */
 
+   
+
     usernameToEmail(username) {
 
-        return (
-            username
-                .toLowerCase()
-                .trim()
-            + "@tiffin.local"
-        );
+    return (
+        username
+            .toLowerCase()
+            .trim()
+        + "@tiffinmanager.app"
+    );
 
-    },
-
+},
 
     /*
     Username validation
