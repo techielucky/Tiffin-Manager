@@ -17,7 +17,9 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Default meal prices
+    =========================================================
     */
 
     let rates = {
@@ -34,7 +36,9 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Get Supabase client
+    =========================================================
     */
 
     function client() {
@@ -46,7 +50,9 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Load all current user's data
+    =========================================================
     */
 
     async function loadAll() {
@@ -164,7 +170,9 @@ window.TiffinDB = (() => {
 
 
         /*
+        =========================================================
         Check errors
+        =========================================================
         */
 
         if (
@@ -215,7 +223,9 @@ window.TiffinDB = (() => {
 
 
         /*
+        =========================================================
         Store data locally
+        =========================================================
         */
 
         profile =
@@ -235,7 +245,9 @@ window.TiffinDB = (() => {
 
 
         /*
+        =========================================================
         Load meal rates
+        =========================================================
         */
 
         if (
@@ -295,7 +307,9 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Return loaded application state
+    =========================================================
     */
 
     function getState() {
@@ -318,7 +332,9 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Find a tiffin record
+    =========================================================
     */
 
     function recordFor(
@@ -334,13 +350,16 @@ window.TiffinDB = (() => {
 
                 record.date ===
                     date
+
         );
 
     }
 
 
     /*
+    =========================================================
     Add / toggle meal
+    =========================================================
     */
 
     async function upsertTiffin(
@@ -406,7 +425,9 @@ window.TiffinDB = (() => {
 
 
         /*
+        =========================================================
         Toggle meal
+        =========================================================
         */
 
         record[meal] =
@@ -416,7 +437,9 @@ window.TiffinDB = (() => {
 
 
         /*
+        =========================================================
         Save to database
+        =========================================================
         */
 
         const {
@@ -445,7 +468,9 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Add person
+    =========================================================
     */
 
     async function addPerson(
@@ -459,6 +484,29 @@ window.TiffinDB = (() => {
                 .getUser();
 
 
+        if (!userData?.user) {
+
+            throw new Error(
+                "You are not signed in."
+            );
+
+        }
+
+
+        const cleanName =
+            String(name || "")
+                .trim();
+
+
+        if (!cleanName) {
+
+            throw new Error(
+                "Person name is required."
+            );
+
+        }
+
+
         const row = {
 
             id:
@@ -467,7 +515,8 @@ window.TiffinDB = (() => {
             user_id:
                 userData.user.id,
 
-            name
+            name:
+                cleanName
 
         };
 
@@ -495,12 +544,90 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Delete person
+    =========================================================
     */
 
     async function deletePerson(
         id
     ) {
+
+        /*
+        Get currently logged-in user
+        */
+
+        const {
+            data: userData,
+            error: userError
+        } =
+            await TiffinAuth
+                .getUser();
+
+
+        if (
+            userError ||
+            !userData?.user
+        ) {
+
+            throw (
+                userError ||
+                new Error(
+                    "You are not signed in."
+                )
+            );
+
+        }
+
+
+        const userId =
+            userData.user.id;
+
+
+        /*
+        Find person in local state
+        */
+
+        const person =
+            people.find(
+                person =>
+                    person.id === id
+            );
+
+
+        if (!person) {
+
+            throw new Error(
+                "Person not found."
+            );
+
+        }
+
+
+        /*
+        Make absolutely sure this
+        person belongs to the
+        currently logged-in user.
+        */
+
+        if (
+            person.user_id !== userId
+        ) {
+
+            throw new Error(
+                "You cannot delete this person."
+            );
+
+        }
+
+
+        /*
+        Delete from Supabase.
+
+        Both ID and user_id are checked.
+        RLS provides an additional
+        database-level security layer.
+        */
 
         const {
             error
@@ -511,15 +638,29 @@ window.TiffinDB = (() => {
                 .eq(
                     "id",
                     id
+                )
+                .eq(
+                    "user_id",
+                    userId
                 );
 
 
         if (error) {
 
+            console.error(
+                "Delete person error:",
+                error
+            );
+
             throw error;
 
         }
 
+
+        /*
+        Remove person from
+        local application state.
+        */
 
         people =
             people.filter(
@@ -527,11 +668,29 @@ window.TiffinDB = (() => {
                     person.id !== id
             );
 
+
+        /*
+        Remove their tiffins
+        from local state too.
+
+        The database should also
+        remove them through
+        ON DELETE CASCADE.
+        */
+
+        tiffins =
+            tiffins.filter(
+                tiffin =>
+                    tiffin.person_id !== id
+            );
+
     }
 
 
     /*
+    =========================================================
     Add expense
+    =========================================================
     */
 
     async function addExpense(
@@ -543,6 +702,15 @@ window.TiffinDB = (() => {
         } =
             await TiffinAuth
                 .getUser();
+
+
+        if (!userData?.user) {
+
+            throw new Error(
+                "You are not signed in."
+            );
+
+        }
 
 
         row.id =
@@ -576,12 +744,41 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Delete expense
+    =========================================================
     */
 
     async function deleteExpense(
         id
     ) {
+
+        const {
+            data: userData,
+            error: userError
+        } =
+            await TiffinAuth
+                .getUser();
+
+
+        if (
+            userError ||
+            !userData?.user
+        ) {
+
+            throw (
+                userError ||
+                new Error(
+                    "You are not signed in."
+                )
+            );
+
+        }
+
+
+        const userId =
+            userData.user.id;
+
 
         const {
             error
@@ -592,6 +789,10 @@ window.TiffinDB = (() => {
                 .eq(
                     "id",
                     id
+                )
+                .eq(
+                    "user_id",
+                    userId
                 );
 
 
@@ -612,7 +813,9 @@ window.TiffinDB = (() => {
 
 
     /*
+    =========================================================
     Update profile
+    =========================================================
     */
 
     async function updateProfile(
@@ -620,10 +823,31 @@ window.TiffinDB = (() => {
     ) {
 
         const {
-            data: userData
+            data: userData,
+            error: userError
         } =
             await TiffinAuth
                 .getUser();
+
+
+        if (
+            userError ||
+            !userData?.user
+        ) {
+
+            throw (
+                userError ||
+                new Error(
+                    "You are not signed in."
+                )
+            );
+
+        }
+
+
+        const cleanName =
+            String(displayName || "")
+                .trim();
 
 
         const {
@@ -634,7 +858,7 @@ window.TiffinDB = (() => {
                 .update({
 
                     display_name:
-                        displayName
+                        cleanName
 
                 })
                 .eq(
@@ -650,14 +874,20 @@ window.TiffinDB = (() => {
         }
 
 
-        profile.display_name =
-            displayName;
+        if (profile) {
+
+            profile.display_name =
+                cleanName;
+
+        }
 
     }
 
 
     /*
+    =========================================================
     Save meal rates
+    =========================================================
     */
 
     async function saveRates(
@@ -665,10 +895,26 @@ window.TiffinDB = (() => {
     ) {
 
         const {
-            data: userData
+            data: userData,
+            error: userError
         } =
             await TiffinAuth
                 .getUser();
+
+
+        if (
+            userError ||
+            !userData?.user
+        ) {
+
+            throw (
+                userError ||
+                new Error(
+                    "You are not signed in."
+                )
+            );
+
+        }
 
 
         const row = {
@@ -677,16 +923,24 @@ window.TiffinDB = (() => {
                 userData.user.id,
 
             breakfast_rate:
-                nextRates.breakfast,
+                Number(
+                    nextRates.breakfast
+                ),
 
             lunch_rate:
-                nextRates.lunch,
+                Number(
+                    nextRates.lunch
+                ),
 
             dinner_rate:
-                nextRates.dinner,
+                Number(
+                    nextRates.dinner
+                ),
 
             extra_rate:
-                nextRates.extra,
+                Number(
+                    nextRates.extra
+                ),
 
             updated_at:
                 new Date()
@@ -717,11 +971,19 @@ window.TiffinDB = (() => {
 
 
         rates = {
+
             ...nextRates
+
         };
 
     }
 
+
+    /*
+    =========================================================
+    Public API
+    =========================================================
+    */
 
     return {
 
