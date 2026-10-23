@@ -1,4 +1,3 @@
-
 /*
 =========================================================
 TIFFIN MANAGER
@@ -9,301 +8,590 @@ DATABASE
 window.TiffinDB = (() => {
 
     let profile = null;
+
     let people = [];
+
     let tiffins = [];
+
     let expenses = [];
+
     let lastSpendReset = null;
 
+
     /*
+    =========================================================
     Default meal prices
+    =========================================================
     */
 
     let rates = {
+
         breakfast: 30,
+
         lunch: 50,
+
         dinner: 50,
+
         extra: 50
+
     };
 
+
     /*
+    =========================================================
     Get Supabase client
+    =========================================================
     */
 
     function client() {
-        return TiffinAuth.getClient();
+
+        return TiffinAuth
+            .getClient();
+
     }
 
-    /*
-    Get the currently authenticated user.
-    */
-
-    async function requireUser() {
-        const { data, error } = await TiffinAuth.getUser();
-
-        if (error) {
-            throw error;
-        }
-
-        if (!data?.user) {
-            throw new Error("You are not signed in.");
-        }
-
-        return data.user;
-    }
 
     /*
-    Load all current user's data.
+    =========================================================
+    Load all current user's data
+    =========================================================
     */
 
     async function loadAll() {
-        const user = await requireUser();
-        const userId = user.id;
 
-        const [
-            profileResult,
-            peopleResult,
-            tiffinResult,
-            expenseResult,
-            settingsResult,
-            resetResult
-        ] = await Promise.all([
+        const {
+            data: userData,
+            error: userError
+        } =
+            await TiffinAuth
+                .getUser();
 
-            client()
-                .from("profiles")
-                .select("*")
-                .eq("id", userId)
-                .maybeSingle(),
 
-            client()
-                .from("people")
-                .select("*")
-                .eq("user_id", userId)
-                .order("name"),
+        if (
+            userError ||
+            !userData.user
+        ) {
 
-            client()
-                .from("tiffin_records")
-                .select("*")
-                .eq("user_id", userId)
-                .order("date"),
+            throw (
+                userError ||
+                new Error(
+                    "You are not signed in."
+                )
+            );
 
-            client()
-                .from("expenses")
-                .select("*")
-                .eq("user_id", userId)
-                .order("date", { ascending: false }),
+        }
 
-            client()
-                .from("settings")
-                .select("*")
-                .eq("user_id", userId)
-                .maybeSingle(),
 
-            client()
-                .from("spend_resets")
-                .select("id, reset_at, amount_paid")
-                .eq("user_id", userId)
-                .order("reset_at", { ascending: false })
-                .limit(1)
-                .maybeSingle()
+        const userId =
+            userData.user.id;
 
-        ]);
-
-        if (profileResult.error) throw profileResult.error;
-        if (peopleResult.error) throw peopleResult.error;
-        if (tiffinResult.error) throw tiffinResult.error;
-        if (expenseResult.error) throw expenseResult.error;
-        if (settingsResult.error) throw settingsResult.error;
 
         /*
-        A missing spend_resets table or policy is an error.
-        Run the supplied SQL migration before using reset.
+        Load everything.
+
+        RLS automatically restricts
+        these queries to the
+        logged-in user's data.
         */
 
+        const [
+
+            profileResult,
+
+            peopleResult,
+
+            tiffinResult,
+
+            expenseResult,
+
+            settingsResult,
+
+            resetResult
+
+        ] =
+            await Promise.all([
+
+                client()
+                    .from("profiles")
+                    .select("*")
+                    .eq(
+                        "id",
+                        userId
+                    )
+                    .single(),
+
+
+                client()
+                    .from("people")
+                    .select("*")
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .order(
+                        "name"
+                    ),
+
+
+                client()
+                    .from("tiffin_records")
+                    .select("*")
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .order(
+                        "date"
+                    ),
+
+
+                client()
+                    .from("expenses")
+                    .select("*")
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .order(
+                        "date",
+                        {
+                            ascending:
+                                false
+                        }
+                    ),
+
+
+                client()
+                    .from("settings")
+                    .select("*")
+                    .eq(
+                        "user_id",
+                        userId
+                    )
+                    .maybeSingle(),
+
+                client()
+                    .from("spend_resets")
+                    .select("reset_at, amount_paid")
+                    .eq("user_id", userId)
+                    .order("reset_at", { ascending: false })
+                    .limit(1)
+                    .maybeSingle()
+
+            ]);
+
+
+        /*
+        =========================================================
+        Check errors
+        =========================================================
+        */
+
+        if (
+            profileResult.error &&
+            profileResult.error.code !==
+                "PGRST116"
+        ) {
+
+            throw profileResult.error;
+
+        }
+
+
+        if (
+            peopleResult.error
+        ) {
+
+            throw peopleResult.error;
+
+        }
+
+
+        if (
+            tiffinResult.error
+        ) {
+
+            throw tiffinResult.error;
+
+        }
+
+
+        if (
+            expenseResult.error
+        ) {
+
+            throw expenseResult.error;
+
+        }
+
+
+        if (
+            settingsResult.error
+        ) {
+
+            throw settingsResult.error;
+
+        }
+
         if (resetResult.error) {
-            console.error("Could not load spend reset:", resetResult.error);
             throw resetResult.error;
         }
 
-        profile = profileResult.data;
-        people = peopleResult.data || [];
-        tiffins = tiffinResult.data || [];
-        expenses = expenseResult.data || [];
+
+        /*
+        =========================================================
+        Store data locally
+        =========================================================
+        */
+
+        profile =
+            profileResult.data;
+
+
+        people =
+            peopleResult.data || [];
+
+
+        tiffins =
+            tiffinResult.data || [];
+
+
+        expenses =
+            expenseResult.data || [];
+
         lastSpendReset = resetResult.data || null;
 
-        if (settingsResult.data) {
-            const settings = settingsResult.data;
+
+        /*
+        =========================================================
+        Load meal rates
+        =========================================================
+        */
+
+        if (
+            settingsResult.data
+        ) {
 
             rates = {
-                breakfast: Number(settings.breakfast_rate ?? 30),
-                lunch: Number(settings.lunch_rate ?? 50),
-                dinner: Number(settings.dinner_rate ?? 50),
-                extra: Number(settings.extra_rate ?? 50)
+
+                breakfast:
+                    Number(
+                        settingsResult
+                            .data
+                            .breakfast_rate
+                    ),
+
+                lunch:
+                    Number(
+                        settingsResult
+                            .data
+                            .lunch_rate
+                    ),
+
+                dinner:
+                    Number(
+                        settingsResult
+                            .data
+                            .dinner_rate
+                    ),
+
+                extra:
+                    Number(
+                        settingsResult
+                            .data
+                            .extra_rate
+                    )
+
             };
+
         }
 
-        return getState();
+
+        return {
+
+            profile,
+
+            people,
+
+            tiffins,
+
+            expenses,
+
+            rates,
+
+            lastSpendReset
+
+        };
+
     }
 
+
     /*
-    Return loaded application state.
+    =========================================================
+    Return loaded application state
+    =========================================================
     */
 
     function getState() {
+
         return {
+
             profile,
+
             people,
+
             tiffins,
+
             expenses,
+
             rates,
+
             lastSpendReset
+
         };
+
     }
 
+
     /*
-    Find a tiffin record.
+    =========================================================
+    Find a tiffin record
+    =========================================================
     */
 
-    function recordFor(personId, date) {
-        return tiffins.find(record =>
-            String(record.person_id) === String(personId) &&
-            record.date === date
+    function recordFor(
+        personId,
+        date
+    ) {
+
+        return tiffins.find(
+            record =>
+
+                record.person_id ===
+                    personId &&
+
+                record.date ===
+                    date
+
         );
+
     }
 
+
     /*
-    Add / toggle a meal.
+    =========================================================
+    Add / toggle meal
+    =========================================================
     */
 
-    async function upsertTiffin(personId, date, meal) {
-        const user = await requireUser();
+    async function upsertTiffin(
+        personId,
+        date,
+        meal
+    ) {
 
-        const validMeals = ["breakfast", "lunch", "dinner", "extra"];
+        const {
+            data: userData
+        } =
+            await TiffinAuth
+                .getUser();
 
-        if (!validMeals.includes(meal)) {
-            throw new Error("Invalid meal type.");
-        }
 
-        let record = recordFor(personId, date);
-        let isNew = false;
+        const userId =
+            userData.user.id;
+
+
+        let record =
+            recordFor(
+                personId,
+                date
+            );
+
+
+        /*
+        Create record if it
+        doesn't exist.
+        */
 
         if (!record) {
+
             record = {
-                id: TiffinUtils.id(),
-                user_id: user.id,
-                person_id: personId,
+
+                id:
+                    TiffinUtils.id(),
+
+                user_id:
+                    userId,
+
+                person_id:
+                    personId,
+
                 date,
+
                 breakfast: 0,
+
                 lunch: 0,
+
                 dinner: 0,
+
                 extra: 0
+
             };
 
-            isNew = true;
+
+            tiffins.push(
+                record
+            );
+
         }
 
-        const previousValue = Number(record[meal] || 0);
-        record[meal] = previousValue ? 0 : 1;
 
-        const { error } = await client()
-            .from("tiffin_records")
-            .upsert(record, {
-                onConflict: "user_id,person_id,date"
-            });
+        /*
+        =========================================================
+        Toggle meal
+        =========================================================
+        */
+
+        record[meal] =
+            record[meal]
+                ? 0
+                : 1;
+
+
+        /*
+        =========================================================
+        Save to database
+        =========================================================
+        */
+
+        const {
+            error
+        } =
+            await client()
+                .from(
+                    "tiffin_records"
+                )
+                .upsert(
+                    record,
+                    {
+                        onConflict:
+                            "user_id,person_id,date"
+                    }
+                );
+
 
         if (error) {
-            record[meal] = previousValue;
-
-            if (isNew) {
-                record = null;
-            }
 
             throw error;
+
         }
 
-        if (isNew) {
-            tiffins.push(record);
-        }
     }
 
+
     /*
-    Add person.
+    =========================================================
+    Add person
+    =========================================================
     */
 
-    async function addPerson(name) {
-        const user = await requireUser();
-        const cleanName = String(name || "").trim();
+    async function addPerson(
+        name
+    ) {
+
+        const {
+            data: userData
+        } =
+            await TiffinAuth
+                .getUser();
+
+
+        if (!userData?.user) {
+
+            throw new Error(
+                "You are not signed in."
+            );
+
+        }
+
+
+        const cleanName =
+            String(name || "")
+                .trim();
+
 
         if (!cleanName) {
-            throw new Error("Person name is required.");
+
+            throw new Error(
+                "Person name is required."
+            );
+
         }
+
 
         const row = {
-            id: TiffinUtils.id(),
-            user_id: user.id,
-            name: cleanName
+
+            id:
+                TiffinUtils.id(),
+
+            user_id:
+                userData.user.id,
+
+            name:
+                cleanName
+
         };
 
-        const { data, error } = await client()
-            .from("people")
-            .insert(row)
-            .select("*")
-            .single();
+
+        const {
+            error
+        } =
+            await client()
+                .from("people")
+                .insert(row);
+
 
         if (error) {
+
             throw error;
+
         }
 
-        people.push(data || row);
+
+        people.push(
+            row
+        );
+
     }
 
-    /*
-    Delete person and associated tiffin records.
 
-    We delete the tiffin records first to avoid a foreign-key
-    conflict if the database does not use ON DELETE CASCADE.
+    /*
+    =========================================================
+    Delete person
+    =========================================================
     */
 
     async function deletePerson(id) {
-        const user = await requireUser();
-        const userId = user.id;
-
-        const person = people.find(
-            item => String(item.id) === String(id)
-        );
-
-        if (!person) {
-            throw new Error(
-                "Person not found. Refresh the page and try again."
-            );
+        const { data: userData, error: userError } = await TiffinAuth.getUser();
+        if (userError || !userData?.user) {
+            throw userError || new Error("You are not signed in.");
         }
 
-        if (person.user_id !== userId) {
-            throw new Error("You cannot delete this person.");
-        }
+        const userId = userData.user.id;
+        const person = people.find(item => String(item.id) === String(id));
+        if (!person) throw new Error("Person not found. Refresh the page and try again.");
 
-        /*
-        Delete this person's tiffin records.
-        */
-
+        // Remove this person's tiffin rows first. This also works when the
+        // database foreign key was created without ON DELETE CASCADE.
         const { error: tiffinError } = await client()
             .from("tiffin_records")
             .delete()
             .eq("person_id", id)
             .eq("user_id", userId);
-
         if (tiffinError) {
-            console.error("Could not delete tiffin records:", tiffinError);
-
-            throw new Error(
-                "Could not delete the person's tiffin records. " +
-                "Check the tiffin_records DELETE policy in Supabase. " +
-                tiffinError.message
-            );
+            console.error("Delete person's tiffin records failed:", tiffinError);
+            throw new Error(`Could not delete this person's tiffin records. Check the tiffin_records DELETE policy in Supabase. ${tiffinError.message}`);
         }
-
-        /*
-        Delete the person and request the deleted row back.
-        */
 
         const { data: deletedRows, error } = await client()
             .from("people")
@@ -314,249 +602,337 @@ window.TiffinDB = (() => {
 
         if (error) {
             console.error("Delete person error:", error);
-
-            throw new Error(
-                "Could not delete person. Check the people DELETE " +
-                "policy and any foreign-key constraints. " +
-                error.message
-            );
+            throw new Error(`Could not delete person. Check the people DELETE policy in Supabase. ${error.message}`);
         }
-
         if (!deletedRows || deletedRows.length === 0) {
-            throw new Error(
-                "No person was deleted. Check the people table's " +
-                "DELETE policy in Supabase."
-            );
+            throw new Error("Supabase did not delete this person. Check that the people table has a DELETE policy for the signed-in user.");
         }
 
-        people = people.filter(
-            item => String(item.id) !== String(id)
-        );
-
-        tiffins = tiffins.filter(
-            item => String(item.person_id) !== String(id)
-        );
+        people = people.filter(item => String(item.id) !== String(id));
+        tiffins = tiffins.filter(item => String(item.person_id) !== String(id));
     }
 
     /*
-    Add expense.
+    =========================================================
+    Add expense
+    =========================================================
     */
 
-    async function addExpense(row) {
-        const user = await requireUser();
+    async function addExpense(
+        row
+    ) {
 
-        const amount = Number(row.amount);
+        const {
+            data: userData
+        } =
+            await TiffinAuth
+                .getUser();
 
-        if (!Number.isFinite(amount) || amount < 0) {
-            throw new Error("Enter a valid expense amount.");
+
+        if (!userData?.user) {
+
+            throw new Error(
+                "You are not signed in."
+            );
+
         }
 
-        const expense = {
-            ...row,
-            id: TiffinUtils.id(),
-            user_id: user.id
-        };
 
-        const { data, error } = await client()
-            .from("expenses")
-            .insert(expense)
-            .select("*")
-            .single();
+        row.id =
+            TiffinUtils.id();
+
+
+        row.user_id =
+            userData.user.id;
+
+
+        const {
+            error
+        } =
+            await client()
+                .from("expenses")
+                .insert(row);
+
 
         if (error) {
+
             throw error;
+
         }
 
-        expenses.unshift(data || expense);
+
+        expenses.unshift(
+            row
+        );
+
     }
 
+
     /*
-    Delete expense and verify the deletion succeeded.
+    =========================================================
+    Delete expense
+    =========================================================
     */
 
     async function deleteExpense(id) {
-        const user = await requireUser();
-        const userId = user.id;
+        // Trim whitespace before passing the UUID to Supabase.
+        const expenseId = String(id ?? "").trim();
+        const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
+        if (!uuidPattern.test(expenseId)) {
+            throw new Error("Invalid expense ID. Refresh the page and try again.");
+        }
+
+        const { data: userData, error: userError } = await TiffinAuth.getUser();
+        if (userError || !userData?.user) {
+            throw userError || new Error("You are not signed in.");
+        }
+
+        const userId = userData.user.id;
         const { data: deletedRows, error } = await client()
             .from("expenses")
             .delete()
-            .eq("id", id)
+            .eq("id", expenseId)
             .eq("user_id", userId)
             .select("id");
 
         if (error) {
             console.error("Delete expense error:", error);
-
-            throw new Error(
-                "Could not delete expense. Check the expenses DELETE " +
-                "policy in Supabase. " + error.message
-            );
+            throw new Error(`Could not delete expense. Check the expenses DELETE policy in Supabase. ${error.message}`);
         }
-
         if (!deletedRows || deletedRows.length === 0) {
-            throw new Error(
-                "No expense was deleted. Check the expenses table's " +
-                "DELETE policy in Supabase."
-            );
+            throw new Error("Supabase did not delete this expense. Check that the expenses table has a DELETE policy for the signed-in user.");
         }
 
-        expenses = expenses.filter(
-            expense => String(expense.id) !== String(id)
-        );
+        expenses = expenses.filter(item => String(item.id).trim() !== expenseId);
     }
 
     /*
-    Calculate current unpaid expense total.
-
-    This function expects expenses to have a created_at column.
-    Expenses created after the last reset are included.
-    Historical expense rows are not deleted.
+    =========================================================
+    Mark current spend as paid without deleting history
+    =========================================================
     */
-
-    function getCurrentSpend() {
-        const resetTime = lastSpendReset?.reset_at
-            ? new Date(lastSpendReset.reset_at).getTime()
-            : 0;
-
-        return expenses.reduce((total, expense) => {
-            const amount = Number(expense.amount || 0);
-
-            if (!Number.isFinite(amount)) {
-                return total;
-            }
-
-            /*
-            Before any reset, include all expenses.
-            After a reset, include only later expenses.
-            */
-
-            const expenseTime = expense.created_at
-                ? new Date(expense.created_at).getTime()
-                : 0;
-
-            if (resetTime && expenseTime <= resetTime) {
-                return total;
-            }
-
-            return total + amount;
-        }, 0);
-    }
-
-    /*
-    Mark all current debt paid and reset current spend.
-
-    This records a settlement instead of deleting expense history.
-    */
-
     async function settleCurrentSpend(amountPaid) {
-        const user = await requireUser();
-        const amount = Number(amountPaid ?? getCurrentSpend());
-
-        if (!Number.isFinite(amount) || amount < 0) {
-            throw new Error("Invalid payment amount.");
+        const { data: userData, error: userError } = await TiffinAuth.getUser();
+        if (userError || !userData?.user) {
+            throw userError || new Error("You are not signed in.");
         }
 
         const row = {
-            user_id: user.id,
-            amount_paid: amount,
+            user_id: userData.user.id,
+            amount_paid: Number(amountPaid || 0),
             reset_at: new Date().toISOString()
         };
 
         const { data, error } = await client()
             .from("spend_resets")
             .insert(row)
-            .select("id, reset_at, amount_paid")
+            .select("reset_at, amount_paid")
             .single();
 
-        if (error) {
-            console.error("Spend reset error:", error);
-            throw new Error(
-                "Could not reset current spend. Check that the " +
-                "spend_resets table and its INSERT/SELECT policies " +
-                "are configured in Supabase. " + error.message
-            );
-        }
-
+        if (error) throw error;
         lastSpendReset = data;
         return data;
     }
 
+
     /*
-    Update profile.
+    =========================================================
+    Update profile
+    =========================================================
     */
 
-    async function updateProfile(displayName) {
-        const user = await requireUser();
-        const cleanName = String(displayName || "").trim();
+    async function updateProfile(
+        displayName
+    ) {
 
-        const { error } = await client()
-            .from("profiles")
-            .update({
-                display_name: cleanName
-            })
-            .eq("id", user.id);
+        const {
+            data: userData,
+            error: userError
+        } =
+            await TiffinAuth
+                .getUser();
+
+
+        if (
+            userError ||
+            !userData?.user
+        ) {
+
+            throw (
+                userError ||
+                new Error(
+                    "You are not signed in."
+                )
+            );
+
+        }
+
+
+        const cleanName =
+            String(displayName || "")
+                .trim();
+
+
+        const {
+            error
+        } =
+            await client()
+                .from("profiles")
+                .update({
+
+                    display_name:
+                        cleanName
+
+                })
+                .eq(
+                    "id",
+                    userData.user.id
+                );
+
 
         if (error) {
+
             throw error;
+
         }
+
 
         if (profile) {
-            profile.display_name = cleanName;
+
+            profile.display_name =
+                cleanName;
+
         }
+
     }
 
+
     /*
-    Save meal rates.
+    =========================================================
+    Save meal rates
+    =========================================================
     */
 
-    async function saveRates(nextRates) {
-        const user = await requireUser();
+    async function saveRates(
+        nextRates
+    ) {
 
-        const row = {
-            user_id: user.id,
-            breakfast_rate: Number(nextRates.breakfast),
-            lunch_rate: Number(nextRates.lunch),
-            dinner_rate: Number(nextRates.dinner),
-            extra_rate: Number(nextRates.extra),
-            updated_at: new Date().toISOString()
-        };
+        const {
+            data: userData,
+            error: userError
+        } =
+            await TiffinAuth
+                .getUser();
 
-        const { error } = await client()
-            .from("settings")
-            .upsert(row, {
-                onConflict: "user_id"
-            });
 
-        if (error) {
-            throw error;
+        if (
+            userError ||
+            !userData?.user
+        ) {
+
+            throw (
+                userError ||
+                new Error(
+                    "You are not signed in."
+                )
+            );
+
         }
 
-        rates = {
-            breakfast: Number(nextRates.breakfast),
-            lunch: Number(nextRates.lunch),
-            dinner: Number(nextRates.dinner),
-            extra: Number(nextRates.extra)
+
+        const row = {
+
+            user_id:
+                userData.user.id,
+
+            breakfast_rate:
+                Number(
+                    nextRates.breakfast
+                ),
+
+            lunch_rate:
+                Number(
+                    nextRates.lunch
+                ),
+
+            dinner_rate:
+                Number(
+                    nextRates.dinner
+                ),
+
+            extra_rate:
+                Number(
+                    nextRates.extra
+                ),
+
+            updated_at:
+                new Date()
+                    .toISOString()
+
         };
+
+
+        const {
+            error
+        } =
+            await client()
+                .from("settings")
+                .upsert(
+                    row,
+                    {
+                        onConflict:
+                            "user_id"
+                    }
+                );
+
+
+        if (error) {
+
+            throw error;
+
+        }
+
+
+        rates = {
+
+            ...nextRates
+
+        };
+
     }
 
+
     /*
-    Public API.
+    =========================================================
+    Public API
+    =========================================================
     */
 
     return {
+
         loadAll,
+
         getState,
+
         recordFor,
+
         upsertTiffin,
+
         addPerson,
+
         deletePerson,
+
         addExpense,
+
         deleteExpense,
-        getCurrentSpend,
+
         settleCurrentSpend,
+
         updateProfile,
+
         saveRates
+
     };
 
 })();
